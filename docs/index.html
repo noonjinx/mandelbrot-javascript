@@ -1,8 +1,270 @@
-<html>
-<head>
-<title>title</title>
-</head>
-<body>
-body
-</body>
+<!DOCTYPE html>
+<html>  
+    <head>
+        <title>Mandelbrot Explorer</title>
+        <style>
+            th,td {
+                padding:8px 8px 0px 8px;
+            }
+            th,td.unpadded {
+                padding:0;
+            }
+            .shadowed {
+                width: 250px;
+                box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+
+        <table class="shadowed" border=0 cellspacing=0 cellpaddng=0 style="outline: thin solid black;">
+            <tr><th class="unpadded" colspan=3><div style="padding:8px;text-align:left;background-color:#d8d8d8">
+                Simple Mandelbrot Explorer v2.0 by Jon Nixon
+            </div></th></tr>
+            <tr>
+                <td>
+                    Iterations:
+                    <input type="text" name="iterations" id="iterations" class="radius has-tip tip-top" value="300"
+                        data-tooltip aria-haspopup="true"
+                        title="Set iterations from 25 (fast) to 2000 (detailed) and click on Restart. 300 is a good compromise" />
+                    <button type="button" onclick="restart()">Restart</button>
+                </td>
+                <td >Click on Image to Zoom In</td>
+                <td style="text-align:right"><button type="button" onclick="zoomOut()">Zoom Out</button></td>
+            </tr>
+            <tr><td colspan=3 style="padding:8px"><div>
+                <table border=0 cellspacing=0 cellpadding=0>
+                    <tr><th>
+                        <div id="info" style="outline: thin solid black;padding:6px;text-align:left;background-color:#e0e0e0" />
+                    </th></tr>
+                    <tr><td class="unpadded">
+                        <canvas id="myCanvas" width="670" height="480">
+                            Your browser does not support the HTML5 canvas tag
+                        </canvas>
+                    </td></tr>
+                </table>
+            </div></td></tr>
+        </table>
+
+        <script>
+
+            // Starting values
+            var START_ITERATION_LIMIT = 300;
+            var START_OX = - 2.05;
+            var START_OY = - 1.0;
+            var START_SCALE = 1;
+
+            // Other constants
+            var ITERATIONS_MIN = 25;
+            var ITERATIONS_MAX = 2000;
+
+            // Global variables
+            var iteration_limit = START_ITERATION_LIMIT;
+            var ox = - START_OX;
+            var oy = - START_OY;
+            var scale = START_SCALE;
+            var red = new Array(iteration_limit);
+            var blue = new Array(iteration_limit);
+            var green = new Array(iteration_limit);
+            var canvas = document.getElementById('myCanvas');
+            canvas.addEventListener('click', zoomIn, false);
+
+            // Initialize and rebuild on first startup
+            init(iteration_limit);
+
+            // When restarting, check user entered iteration_limit and then initialize
+            function restart() {
+                iteration_limit = document.getElementById('iterations').value;
+                if (iteration_limit < ITERATIONS_MIN) iteration_limit = ITERATIONS_MIN;
+                if (iteration_limit > ITERATIONS_MAX) iteration_limit = ITERATIONS_MAX;
+                init(iteration_limit);
+            }
+
+            // Perform any initializations start and restart have in common
+            function init(iteration_limit) {
+                document.getElementById('iterations').value = iteration_limit;
+                initColours(iteration_limit);
+                oy = START_OY;
+                ox = START_OX;
+                scale = START_SCALE;
+                rebuild(ox, oy, scale);
+            }
+
+            // Create array of colours, one for each iteration
+            function initColours(iteration_limit)  {
+
+                // Create array of colours, one for each iteration
+                red = new Array(iteration_limit);
+                blue = new Array(iteration_limit);
+                green = new Array(iteration_limit);
+
+                // Divide iterations into 7 ranges
+                var range = Math.round(iteration_limit / 7 + 1);
+
+                // Loop through each iteration in a range
+                for (var i = 0; i < range; i++) {
+
+                    // Increase goes up from 00 to FF as range is completed
+                    var increase = Math.round(256 * i / range);
+                    if (increase > 255) increase = 255;
+
+                    // Decrease goes down from FF to 00 as range is completed
+                    var decrease = Math.round(256 * (range - i) / range);
+                    if (decrease > 255) decrease = 255;
+
+                    // First range moves from 000000 black to 0000FF blue
+                    red[i + 0 * range] = 0;
+                    green[i + 0 * range] = 0;
+                    blue[i + 0 * range] = increase;
+
+                    // Second range moves from 0000FF blue to 00FF00 green
+                    red[i + 1 * range] = 0;
+                    green[i + 1 * range] = increase;
+                    blue[i + 1 * range] = decrease;
+
+                    // Third range moves from 00FF00 green to 00FFFF cyan
+                    red[i + 2 * range] = 0;
+                    green[i + 2 * range] = 255;
+                    blue[i + 2 * range] = increase;
+
+                    // Fourth range moves from 00FFFF cyan to FF0000 red
+                    red[i + 3 * range] = increase;
+                    green[i + 3 * range] = decrease;
+                    blue[i + 3 * range] = decrease;
+                            
+                    // Fifth range moves from FF0000 red to FF00FF magenta
+                    red[i + 4 * range] = 255;
+                    green[i + 4 * range] = 0;
+                    blue[i + 4 * range] = increase;
+
+                    // Sixth range moves from FF00FF magenta to FFFF00 yellow
+                    red[i + 5 * range] = 255;
+                    green[i + 5 * range] = increase;
+                    blue[i + 5 * range] = decrease;
+
+                    // Seventh range moves from FFFF00 yellow to FFFFFF white
+                    red[i + 6 * range] = 255;
+                    green[i + 6 * range] = 255;
+                    blue[i + 6 * range] = increase;
+                }
+            }
+
+            // Rebuild image
+            function rebuild(newX, newY, newScale) {
+
+                // Use new parameters
+                ox = newX;
+                oy = newY;
+                scale = newScale;
+
+                // Update title
+                document.getElementById('info').innerHTML = "Recalculating...";
+                
+                // Initialize canvas to black
+                var width = canvas.width;
+                var height = canvas.height;
+                var canvasData = new ImageData(width, height);
+                for (var i=0;i<canvasData.data.length;i+=4) {
+                    canvasData.data[i+0]=0;
+                    canvasData.data[i+1]=0;
+                    canvasData.data[i+2]=0;
+                    canvasData.data[i+3]=255;
+                }
+
+                var py;
+                for (py = 0; py < height; py++) { 
+                    var y0 = (py / height) * 2 / scale + oy;
+                    var px;
+                    for (px = 0; px < width; px++) { 
+                        var x0 = (px / width) * 2.70 / scale + ox;
+                        // By default, point is black
+                        var r = 0;
+                        var g = 0;
+                        var b = 0;
+
+                        // Optimization - Check if point is worth testing
+                        if(needTest(x0, y0)) {
+
+                            // Mandelbrot calculation
+                            var x = 0.0;
+                            var y = 0.0;
+                            var iteration = 0;
+                            while (x * x + y * y < 2 * 2 && iteration < iteration_limit) {
+                                var xtemp = x * x - y * y + x0;
+                                y = 2 * x * y + y0;
+                                x = xtemp;
+                                iteration = iteration + 1;
+                            }
+
+                            // Map iteration count to colour
+                            if(iteration < iteration_limit) {
+                                r = red[iteration];
+                                g = green[iteration];
+                                b = blue[iteration];
+                            }
+
+                            // Add pixel to canvas data
+                            var index = (px + py * width) * 4;
+                            canvasData.data[index + 0] = r;
+                            canvasData.data[index + 1] = g;
+                            canvasData.data[index + 2] = b;
+                            canvasData.data[index + 3] = 255;
+                        }
+                    }
+                }
+
+                // Copy canvas data to canvas
+                var ctx = canvas.getContext("2d");
+                ctx.putImageData(canvasData, 0, 0);
+
+                // Update title
+                document.getElementById('info').innerHTML = "Scale = " + scale + ",  x(Re) = " + ox + ",  y(Im) =" + oy;
+
+            }
+
+            // Optimization - Check if point is worth testing
+            function needTest(x0, y0) {
+
+                if (x0 < -1.25) return true; // Past left edge of small blob
+                if (x0 > 0.375) return true; // Past right edge of large blob
+                if (y0 < -0.65) return true; // Past bottom edge of large blob
+                if (y0 > 0.65) return true;  // Past top edge of large blob
+                if (x0 >= -0.75) {           // Possibly in large blob
+                    q = (x0 - 0.25) * (x0 - 0.25) + y0 * y0;
+                    if (4 * q * (q + (x0 - 0.25)) < y0 * y0) { return false; } // In large blob
+                }
+                if (y0 < -0.25) return true; // Past bottom edge of small blob
+                if (y0 > 0.25) return true; // Past top edge of small blob
+                if (16 * ((x0 + 1) * (x0 + 1) + y0 * y0) < 1) return false; // In small blob
+
+                return true; // Don't know if point is in set or not , so need to test
+            }
+
+            // When user clicks on image: recenter, rescale and rebuild
+            function zoomIn(ev) {
+                var rect = canvas.getBoundingClientRect();
+                var x = Math.round(ev.clientX - rect.left);
+                var y = Math.round(ev.clientY - rect.top);
+                var newX = (x / canvas.width) * 2.70 / scale + ox - 2.70 / scale / 4;
+                var newY = (y / canvas.height) * 2 / scale + oy - 2 / scale / 4;
+                var newScale = scale * 2;
+                rebuild(newX, newY, newScale);
+            }
+
+            // When user clicks on zoom out button: recenter, rescale and rebuild
+            function zoomOut() {
+                if (scale < 4) {
+                    rebuild(START_OX, START_OY, START_SCALE);
+                } else {
+                    var newX = ox - (ox - START_OX) / scale;
+                    var newY = oy - (oy - START_OY) / scale;
+                    var newScale = scale / 2;
+                    rebuild(newX, newY, newScale);
+                }
+            }
+
+        </script>
+
+    </body>
 </html>
