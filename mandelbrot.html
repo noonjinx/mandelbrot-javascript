@@ -49,6 +49,8 @@
 
         <script>
 
+            "use strict";
+
             // Starting values
             var START_ITERATION_LIMIT = 300;
             var START_OX = - 2.05;
@@ -231,7 +233,7 @@
                 if (y0 < -0.65) return true; // Past bottom edge of large blob
                 if (y0 > 0.65) return true;  // Past top edge of large blob
                 if (x0 >= -0.75) {           // Possibly in large blob
-                    q = (x0 - 0.25) * (x0 - 0.25) + y0 * y0;
+                    var q = (x0 - 0.25) * (x0 - 0.25) + y0 * y0;
                     if (4 * q * (q + (x0 - 0.25)) < y0 * y0) { return false; } // In large blob
                 }
                 if (y0 < -0.25) return true; // Past bottom edge of small blob
